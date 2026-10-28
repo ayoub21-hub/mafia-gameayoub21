@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mafia Web Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ========================================= */
+        /* المتغيرات الأساسية */
+        /* ========================================= */
+        :root {
+            --bg-main: #0b1120;
+            --bg-card: #151f32;
+            --bg-card-hover: #1e2a45;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --danger: #ef4444;
+            --success: #10b981;
+            
+            /* ألوان الثيمات */
+            --mafia-bg: linear-gradient(180deg, #2a080c 0%, #110204 100%);
+            --mafia-card: #4a1016;
+            --mafia-border: #8a1c24;
+            
+            --doctor-bg: linear-gradient(180deg, #062e24 0%, #020f0b 100%);
+            --doctor-card: #0b4a3a;
+            --doctor-border: #147a5d;
+            
+            --sheikh-bg: linear-gradient(180deg, #2e0b45 0%, #110217 100%);
+            --sheikh-card: #4a1569;
+            --sheikh-border: #7b24b0;
+
+            --setup-bg: linear-gradient(180deg, #101b36 0%, #080d1a 100%);
+            --setup-card: #17264a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #000;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ========================================= */
+        /* Loading Screen - Ayoub 21 */
+        /* ========================================= */
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.4s ease;
+        }
+        .loader-title { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 20px; }
+        .loader-spinner {
+            width: 50px; height: 50px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ========================================= */
+        /* حاوية التطبيق */
+        /* ========================================= */
+        #app-container {
+            width: 100%;
+            max-width: 450px;
+            height: 100vh;
+            max-height: 850px;
+            position: relative;
+            background: var(--bg-main);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            overflow: hidden;
+            border-radius: 20px;
+        }
+        @media (max-width: 450px) { #app-container { border-radius: 0; max-height: 100vh; } }
+
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(-20px);
+            overflow-y: auto;
+            z-index: 1;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+            z-index: 10;
+        }
+
+        /* رأس الصفحة */
+        .header-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; font-size: 20px; font-weight: 700;
+        }
+        .header-icon { font-size: 24px; cursor: pointer; color: var(--text-muted); }
+
+        /* ========================================= */
+        /* 1. شاشة الإعدادات (Setup Screen) */
+        /* ========================================= */
+        #setup-screen { background: var(--setup-bg); }
+        .settings-group-title { color: var(--text-muted); font-size: 14px; margin: 20px 0 10px 0; text-align: center;}
+        
+        /* أزرار عدد اللاعبين (Pills) */
+        .player-count-pills {
+            display: flex; justify-content: space-between; gap: 5px;
+            background: rgba(255,255,255,0.03); padding: 5px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .pill-btn {
+            flex: 1; padding: 8px 0; border-radius: 8px; border: none;
+            background: transparent; color: var(--text-muted); font-weight: bold;
+            font-size: 14px; cursor: pointer; transition: 0.2s;
+        }
+        .pill-btn.active { background: rgba(59, 130, 246, 0.3); color: #60a5fa; }
+
+        .setting-row {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--setup-card); padding: 15px; border-radius: 12px; margin-bottom: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .setting-label { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600;}
+        .setting-icon { width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 16px; }
+        .icon-mafia { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .icon-doctor { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .icon-sheikh { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
+
+        .stepper { display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 20px;}
+        .stepper button {
+            background: transparent; color: var(--text-muted); border: none;
+            font-size: 18px; cursor: pointer; font-weight: bold;
+        }
+        .stepper span { font-weight: bold; width: 15px; text-align: center; color: white;}
+
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; font-size: 14px;}
+        .toggle-row select { background: transparent; color: var(--text-muted); border: none; outline: none; font-size: 14px; direction: ltr;}
+        
+        /* Switch Toggle */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #2563eb, #3b82f6); color: white;
+            border: none; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700;
+            cursor: pointer; width: 100%; margin-top: auto; display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        .btn-outline {
+            background: transparent; border: 1px solid var(--text-muted); color: var(--text-main);
+            padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 600;
+            cursor: pointer; width: 100%; margin-top: 10px;
+        }
+
+        /* ========================================= */
+        /* 2. إدخال الأسماء */
+        /* ========================================= */
+        .name-input-container { display: flex; gap: 10px; margin-bottom: 10px; }
+        .name-input-container input {
+            flex: 1; padding: 15px; border-radius: 10px; border: 1px solid #334155;
+            background: var(--setup-card); color: white; font-size: 16px; outline: none;
+        }
+        .name-input-container .delete-btn { background: #334155; width: 50px; border-radius: 10px; border: none; color: white; cursor: pointer; }
+        .add-btn { background: #1e293b; color: white; border: 1px dashed #475569; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-bottom: 20px;}
+
+        /* ========================================= */
+        /* 3. كشف الدور والليل (Match Images) */
+        /* ========================================= */
+        /* خلفيات الثيمات */
+        .theme-mafia { background: var(--mafia-bg) !important; }
+        .theme-doctor { background: var(--doctor-bg) !important; }
+        .theme-sheikh { background: var(--sheikh-bg) !important; }
+        
+        .action-header { text-align: center; margin-bottom: 20px; margin-top: 10px;}
+        .action-header h2 { font-size: 22px; margin-bottom: 5px; }
+        .action-header p { font-size: 14px; color: var(--text-muted); }
+
+        /* قائمة اختيار اللاعبين (List Style) */
+        .player-list-container {
+            display: flex; flex-direction: column; gap: 8px;
+            padding: 15px; border-radius: 16px; background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.05); flex: 1; overflow-y: auto;
+        }
+        .player-list-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 15px; border-radius: 10px; background: rgba(255,255,255,0.05);
+            border: 1px solid transparent; cursor: pointer; transition: 0.2s;
+        }
+        .player-list-item.selected { border-color: #fff; background: rgba(255,255,255,0.1); }
+        
+        /* تخصيص ألوان الاختيار حسب الثيم */
+        .theme-mafia .player-list-item.selected { border-color: #ef4444; background: rgba(239, 68, 68, 0.2); }
+        .theme-doctor .player-list-item.selected { border-color: #10b981; background: rgba(16, 185, 129, 0.2); }
+        .theme-sheikh .player-list-item.selected { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.2); }
+
+        .player-info { display: flex; align-items: center; gap: 10px; }
+        .player-info .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; justify-content: center; align-items: center; font-size: 14px;}
+        
+        /* زر الراديو الدائري */
+        .radio-circle {
+            width: 20px; height: 20px; border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3); position: relative;
+        }
+        .player-list-item.selected .radio-circle { border-color: currentColor; }
+        .player-list-item.selected .radio-circle::after {
+            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 10px; height: 10px; border-radius: 50%; background: currentColor;
+        }
+
+        /* المؤقت الدائري (SVG Timer) */
+        .timer-container { display: flex; justify-content: center; margin: 20px 0; }
+        .timer-svg { width: 70px; height: 70px; transform: rotate(-90deg); }
+        .timer-svg circle { fill: none; stroke-width: 4; }
+        .timer-svg .bg { stroke: rgba(255,255,255,0.1); }
+        .timer-svg .progress { stroke: #fff; stroke-dasharray: 200; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
+        .timer-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 20px; font-weight: bold; color: #fff;
+        }
+        
+        .theme-mafia .timer-svg .progress { stroke: #ef4444; }
+        .theme-doctor .timer-svg .progress { stroke: #10b981; }
+
+        /* الدور كارد (في شاشة كشف الدور) */
+        .role-card-display {
+            background: #fff; border-radius: 16px; padding: 30px 20px;
+            text-align: center; color: #333; margin-bottom: 20px;
+        }
+        .role-icon-big { font-size: 60px; margin-bottom: 10px; }
+        .role-card-display h2 { font-size: 26px; margin-bottom: 10px; font-weight: 800;}
+        .role-card-display p { font-size: 14px; color: #666; }
+
+        /* ========================================= */
+        /* 4. شاشة النتائج */
+        /* ========================================= */
+        .result-screen { justify-content: center; text-align: center; }
+        .result-icon { font-size: 70px; margin-bottom: 20px; }
+        .result-screen h2 { font-size: 24px; margin-bottom: 10px; }
+        .result-screen p { font-size: 16px; color: var(--text-muted); margin-bottom: 30px;}
+
+        /* ========================================= */
+        /* 5. شاشة الفوز */
+        /* ========================================= */
+        .winner-screen { background: linear-gradient(180deg, #1e1b4b 0%, #0b1120 100%); justify-content: center; text-align: center;}
+        .trophy { font-size: 80px; margin-bottom: 20px; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        
+    </style>
+</head>
+<body>
+
+    <!-- شاشة التحميل Ayoub 21 -->
+    <div id="loading-screen">
+        <div class="loader-title">Ayoub 21</div>
+        <div class="loader-spinner"></div>
+    </div>
+
+    <div id="app-container">
+        
+        <!-- 1. شاشة الإعدادات -->
+        <div id="setup-screen" class="screen active">
+            <div class="header-bar">
+                <span>⚙️</span>
+                <h2>إعدادات اللعبة</h2>
+                <span></span>
+            </div>
+            
+            <p class="settings-group-title">عدد اللاعبين:</p>
+            <div class="player-count-pills" id="player-pills">
+                <!-- سيتم توليد الأزرار هنا بواسطة JS -->
+            </div>
+
+            <div class="settings-group-title">عدد الأدوار:</div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="setting-icon icon-mafia">🔪</div>
+                    <span>عدد المافيا</span>
+                </div>
+                <div class="stepper">
+                    <button onclick="updateSetting('mafia', -1)">-</button>
+                    <span id="val-mafia">1</span>
+                    <button onclick="updateSetting('mafia', 1)">+</button>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="setting-icon icon-doctor">➕</div>
+                    <span>عدد الأطباء</span>
+                </div>
+                <div class="stepper">
+                    <button onclick="updateSetting('doctor', -1)">-</button>
+                    <span id="val-doctor">1</span>
+                    <button onclick="updateSetting('doctor', 1)">+</button>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="setting-icon icon-sheikh">👁️</div>
+                    <span>عدد الشيوخ</span>
+                </div>
+                <div class="stepper">
+                    <button onclick="updateSetting('sheikh', -1)">-</button>
+                    <span id="val-sheikh">1</span>
+                    <button onclick="updateSetting('sheikh', 1)">+</button>
+                </div>
+            </div>
+
+            <div class="settings-group-title" style="text-align: right; margin-top:20px;">قواعد إضافية:</div>
+            
+            <div class="toggle-row">
+                <span>الطبيب يحمي نفسه</span>
+                <label class="switch">
+                    <input type="checkbox" id="doc-self-save" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="toggle-row">
+                <span>مدة النقاش (بالثواني)</span>
+                <select id="timer-discussion">
+                    <option value="30">30 ثانية</option>
+                    <option value="60">60 ثانية</option>
+                    <option value="120">دقيقتان</option>
+                </select>
+            </div>
+
+            <div class="toggle-row">
+                <span>التعادل في التصويت</span>
+                <select id="tie-rule">
+                    <option value="none">لا يخرج أحد</option>
+                    <option value="random">اختيار عشوائي</option>
+                </select>
+            </div>
+
+            <div class="toggle-row" style="border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
+                <span>كشف الأدوار بعد الإقصاء</span>
+                <label class="switch">
+                    <input type="checkbox" id="reveal-on-death" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <button class="btn-primary" onclick="goToNamesScreen()">
+                <span>▶️</span> بدء اللعبة
+            </button>
+        </div>
+
+        <!-- 2. شاشة إدخال الأسماء -->
+        <div id="names-screen" class="screen">
+            <div class="header-bar">
+                <span class="header-icon" onclick="showScreen('setup-screen')">➡️</span>
+                <h2>أدخل أسماء اللاعبين</h2>
+                <span style="width:24px;"></span>
+            </div>
+            <p style="text-align:center; font-size:14px; color:var(--text-muted); margin-bottom:20px;">من 5 إلى 12 لاعب</p>
+            
+            <div id="names-list" style="flex:1; overflow-y:auto;">
+                <!-- حقول الإدخال -->
+            </div>
+            
+            <button class="add-btn" onclick="addNameField()">+ إضافة لاعب</button>
+            <button class="btn-primary" onclick="startGame()">تأكيد وبدء توزيع الأدوار</button>
+        </div>
+
+        <!-- 3. شاشة تمرير الهاتف -->
+        <div id="pass-screen" class="screen" style="justify-content: center; text-align: center;">
+            <h2 style="font-size: 22px; color: var(--text-muted);">مرر الهاتف إلى:</h2>
+            <div id="pass-name-display" style="font-size: 40px; font-weight: 800; color: #fff; margin: 20px 0;">اللاعب</div>
+            <p id="pass-context" style="color: var(--text-muted); margin-bottom: 40px;">تأكد أن لا أحد يرى الشاشة</p>
+            <button class="btn-primary" onclick="acceptPass()">أنا هذا الشخص</button>
+        </div>
+
+        <!-- 4. شاشة كشف الدور -->
+        <div id="role-reveal-screen" class="screen">
+            <div class="header-bar">
+                <span></span>
+                <h2 style="font-size:18px;">دورك هو:</h2>
+                <span class="header-icon" onclick="hideRoleAndNext()">✖</span>
+            </div>
+            
+            <div id="role-card-visual" class="role-card-display theme-doctor" style="background:#e0f2f1;">
+                <div class="role-icon-big" id="role-icon-visual">➕</div>
+                <h2 id="role-title-text" style="color: #00695c;">الطبيب</h2>
+                <p id="role-desc-text">اختر لاعباً واحداً لحمايته من القتل</p>
+            </div>
+
+            <div style="margin-top: auto;">
+                <button class="btn-primary" style="background:#00796b;" onclick="hideRoleAndNext()">تأكيد وتمرير الهاتف</button>
+            </div>
+        </div>
+
+        <!-- 5. شاشة اختيار الليل (تطابق الصور) -->
+        <div id="night-action-screen" class="screen theme-mafia">
+            <!-- سيتم تغيير الكلاس ديناميكياً (theme-mafia / theme-doctor / theme-sheikh) -->
+            <div class="header-bar">
+                <span class="header-icon" onclick="nextNightPlayer()">⬅️</span>
+                <h2 style="font-size:18px;" id="night-header-title">اختر ضحية</h2>
+                <span></span>
+            </div>
+            
+            <p style="text-align:center; font-size:12px; margin-bottom:15px;" id="night-header-desc">من بين اللاعبين الموجودين</p>
+
+            <div id="night-player-list" class="player-list-container">
+                <!-- سيتم توليد اللاعبين هنا -->
+            </div>
+
+            <!-- المؤقت الدائري -->
+            <div class="timer-container">
+                <div style="position: relative;">
+                    <svg class="timer-svg">
+                        <circle class="bg" cx="35" cy="35" r="30"></circle>
+                        <circle class="progress" id="timer-progress" cx="35" cy="35" r="30"></circle>
+                    </svg>
+                    <div class="timer-text" id="night-timer-text">8s</div>
+                </div>
+            </div>
+
+            <button id="night-confirm-btn" class="btn-primary" style="background: #ef4444;" onclick="confirmNightAction()">
+                <span>✔</span> تأكيد الاختيار
+            </button>
+            <button class="btn-outline" style="border-color: rgba(255,255,255,0.2);" onclick="nextNightPlayer()">إخفاء الدور وتمرير الهاتف</button>
+            <p style="text-align:center; font-size:10px; color:var(--text-muted); margin-top:10px;">سيتم إخفاء الاختيار بعد التأكيد</p>
+        </div>
+
+        <!-- 6. نتيجة الليل -->
+        <div id="night-result-screen" class="screen theme-mafia" style="justify-content: center; text-align: center;">
+            <div class="result-icon" id="night-result-icon">🛡️</div>
+            <h2 id="night-result-title">تم إنقاذ الضحية!</h2>
+            <p id="night-result-text" style="font-size:16px; color:#fff; margin-top:10px;">لم يمت أحد الليلة.</p>
+            <button class="btn-primary" style="background: #3b82f6; margin-top:40px;" onclick="startDayPhase()">متابعة إلى النهار</button>
+        </div>
+
+        <!-- 7. النهار والنقاش -->
+        <div id="day-screen" class="screen" style="background: linear-gradient(180deg, #b45309 0%, #78350f 100%);">
+            <h2 style="text-align:center; margin-top:50px;">☀️ مرحلة النهار</h2>
+            <p style="text-align:center; font-size:16px; color:#fff; margin-top:10px;">ناقشوا لمعرفة من هي المافيا!</p>
+            
+            <div class="timer-container" style="margin-top:40px;">
+                <div style="position: relative;">
+                    <svg class="timer-svg">
+                        <circle class="bg" cx="35" cy="35" r="30" style="stroke: rgba(255,255,255,0.2);"></circle>
+                        <circle class="progress" id="day-timer-progress" cx="35" cy="35" r="30" style="stroke: #fff;"></circle>
+                    </svg>
+                    <div class="timer-text" id="day-timer-text" style="color: #fff;">30s</div>
+                </div>
+            </div>
+
+            <button class="btn-primary" style="margin-top:auto; background: #d97706;" onclick="startVoting()">إنهاء النقاش والتصويت</button>
+        </div>
+
+        <!-- 8. التصويت -->
+        <div id="voting-screen" class="screen" style="background: linear-gradient(180deg, #1e3a8a 0%, #172554 100%);">
+            <div class="header-bar">
+                <span></span>
+                <h2 style="font-size:18px;">🗳️ التصويت للإقصاء</h2>
+                <span></span>
+            </div>
+            <p style="text-align:center; font-size:14px;" id="voting-context">اختر من تعتقد أنه المافيا</p>
+            
+            <div id="vote-player-list" class="player-list-container" style="background: rgba(0,0,0,0.3);">
+                <!-- قائمة التصويت -->
+            </div>
+            
+            <button class="btn-primary" style="background:#3b82f6;" onclick="confirmVote()">تأكيد التصويت</button>
+        </div>
+
+        <!-- 9. نتيجة التصويت -->
+        <div id="vote-result-screen" class="screen" style="justify-content: center; text-align: center; background: #1e3a8a;">
+            <div class="result-icon" id="vote-result-icon">🗳️</div>
+            <h2 id="vote-result-title">تم إقصاء اللاعب</h2>
+            <p id="vote-result-text" style="font-size:16px; color:#fff; margin-top:10px;">دوره كان مواطن.</p>
+            <button class="btn-primary" style="background: #3b82f6; margin-top:40px;" onclick="nextRound()">متابعة</button>
+        </div>
+
+        <!-- 10. شاشة الفوز -->
+        <div id="game-over-screen" class="screen winner-screen">
+            <div class="trophy" id="winner-icon">🏆</div>
+            <h1 id="winner-text" style="font-size:28px;">فاز المواطنون!</h1>
+            <p id="winner-desc" style="font-size:16px; margin-top:10px;">تم القضاء على المافيا</p>
+            
+            <div style="margin-top:40px; width:100%;">
+                <button class="btn-primary" onclick="replayGame()">إعادة اللعب بنفس اللاعبين</button>
+                <button class="btn-outline" onclick="editPlayers()">تعديل قائمة اللاعبين</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- حالة اللعبة ---
+        let game = {
+            settings: {
+                playerCount: 8, // افتراضي
+                mafia: 2, doctor: 1, sheikh: 1,
+                doctorCanSelfSave: true,
+                revealOnDeath: true,
+                tieRule: 'none',
+                discussionTimer: 30
+            },
+            players: [], 
+            alivePlayers: [], 
+            roles: {}, 
+            phase: 'setup', 
+            round: 1,
+            
+            passIndex: 0,
+            currentPassCallback: null,
+            
+            nightActions: { mafiaTarget: null, doctorTarget: null, sheikhTarget: null },
+            currentNightRole: "",
+            activeTimer: null,
+            
+            votes: {},
+            voteIndex: 0
+        };
+
+        // --- إخفاء شاشة التحميل ---
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 400);
+                
+                // استرجاع الأسماء المحفوظة
+                const saved = localStorage.getItem('mafia_players');
+                if (saved) game.players = JSON.parse(saved);
+                else game.players = ["أحمد", "يوسف", "محمد", "علي", "سعيد"]; // أسماء تجريبية
+                
+                initSetupUI();
+            }, 1000);
+        });
+
+        // --- UI الإعدادات ---
+        function initSetupUI() {
+            const pillsContainer = document.getElementById('player-pills');
+            pillsContainer.innerHTML = '';
+            for (let i = 5; i <= 12; i++) {
+                const btn = document.createElement('button');
+                btn.className = `pill-btn ${i === game.settings.playerCount ? 'active' : ''}`;
+                btn.innerText = i;
+                btn.onclick = () => {
+                    game.settings.playerCount = i;
+                    document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    validateRoles();
+                };
+                pillsContainer.appendChild(btn);
+            }
+            updateSettingUI();
+        }
+
+        function updateSetting(type, change) {
+            if (type === 'mafia') game.settings.mafia = Math.max(1, game.settings.mafia + change);
+            if (type === 'doctor') game.settings.doctor = Math.max(0, game.settings.doctor + change);
+            if (type === 'sheikh') game.settings.sheikh = Math.max(0, game.settings.sheikh + change);
+            validateRoles();
+            updateSettingUI();
+        }
+
+        function updateSettingUI() {
+            document.getElementById('val-mafia').innerText = game.settings.mafia;
+            document.getElementById('val-doctor').innerText = game.settings.doctor;
+            document.getElementById('val-sheikh').innerText = game.settings.sheikh;
+        }
+
+        function validateRoles() {
+            const totalSpecial = game.settings.mafia + game.settings.doctor + game.settings.sheikh;
+            if (totalSpecial >= game.settings.playerCount) {
+                // إعادة ضبط إذا زاد العدد
+                game.settings.mafia = 1;
+                game.settings.doctor = 1;
+                game.settings.sheikh = 0;
+                updateSettingUI();
+                alert("يجب أن يكون هناك مواطن واحد على الأقل. تم إعادة ضبط الأدوار.");
+            }
+        }
+
+        function goToNamesScreen() {
+            game.settings.doctorCanSelfSave = document.getElementById('doc-self-save').checked;
+            game.settings.revealOnDeath = document.getElementById('reveal-on-death').checked;
+            game.settings.tieRule = document.getElementById('tie-rule').value;
+            game.settings.discussionTimer = parseInt(document.getElementById('timer-discussion').value);
+            
+            // ضبط عدد الأسماء المدخلة ليطابق عدد اللاعبين المختار
+            while (game.players.length < game.settings.playerCount) game.players.push("");
+            game.players = game.players.slice(0, game.settings.playerCount);
+
+            showScreen('names-screen');
+            renderNameInputs();
+        }
+
+        // --- الأسماء ---
+        function renderNameInputs() {
+            const container = document.getElementById('names-list');
+            container.innerHTML = '';
+            game.players.forEach((name, index) => {
+                container.innerHTML += `
+                    <div class="name-input-container">
+                        <input type="text" value="${name}" placeholder="اسم اللاعب ${index + 1}" onchange="updateName(${index}, this.value)">
+                        ${game.players.length > 5 ? `<button class="delete-btn" onclick="removeNameField(${index})">✕</button>` : ''}
+                    </div>
+                `;
+            });
+        }
+
+        function addNameField() {
+            if (game.players.length < game.settings.playerCount) {
+                game.players.push("");
+                renderNameInputs();
+            } else {
+                alert(`عدد اللاعبين محدد بـ ${game.settings.playerCount} من الإعدادات.`);
+            }
+        }
+
+        function removeNameField(index) {
+            game.players.splice(index, 1);
+            renderNameInputs();
+        }
+
+        function updateName(index, value) {
+            game.players[index] = value.trim();
+        }
+
+        // --- بدء اللعبة ---
+        function startGame() {
+            const validNames = game.players.filter(n => n !== "");
+            if (validNames.length !== game.settings.playerCount) {
+                return alert(`يجب إدخال ${game.settings.playerCount} أسماء.`);
+            }
+            if (new Set(validNames).size !== validNames.length) {
+                return alert("لا يمكن تكرار الأسماء!");
+            }
+
+            game.players = validNames;
+            localStorage.setItem('mafia_players', JSON.stringify(game.players));
+            game.alivePlayers = [...validNames];
+            game.roles = {};
+            game.round = 1;
+
+            // توزيع الأدوار
+            let rolePool = [];
+            for (let i = 0; i < game.settings.mafia; i++) rolePool.push('Mafia');
+            for (let i = 0; i < game.settings.doctor; i++) rolePool.push('Doctor');
+            for (let i = 0; i < game.settings.sheikh; i++) rolePool.push('Sheikh');
+            const citizens = game.settings.playerCount - rolePool.length;
+            for (let i = 0; i < citizens; i++) rolePool.push('Citizen');
+
+            rolePool.sort(() => Math.random() - 0.5);
+
+            game.players.forEach((player, index) => {
+                game.roles[player] = rolePool[index];
+            });
+
+            game.phase = 'reveal';
+            game.passIndex = 0;
+            startPassSequence("كشف الأدوار", showRoleReveal);
+        }
+
+        // --- تمرير الهاتف ---
+        function startPassSequence(context, callback) {
+            document.getElementById('pass-context').innerText = context;
+            document.getElementById('pass-name-display').innerText = game.alivePlayers[game.passIndex];
+            game.currentPassCallback = callback;
+            showScreen('pass-screen');
+        }
+
+        function acceptPass() {
+            if (game.currentPassCallback) game.currentPassCallback();
+        }
+
+        // --- كشف الدور ---
+        function showRoleReveal() {
+            const player = game.alivePlayers[game.passIndex];
+            const role = game.roles[player];
+            
+            const card = document.getElementById('role-card-visual');
+            const icon = document.getElementById('role-icon-visual');
+            const title = document.getElementById('role-title-text');
+            const desc = document.getElementById('role-desc-text');
+
+            // إزالة الثيمات السابقة
+            card.className = 'role-card-display';
+
+            if (role === 'Mafia') {
+                card.style.background = '#ffebee'; card.style.color = '#b71c1c';
+                icon.innerText = "🕵️‍♂️"; icon.style.color = '#b71c1c';
+                title.innerText = "المافيا"; title.style.color = '#b71c1c';
+                desc.innerText = "اختر ضحية كل ليلة. تظاهر بالبراءة في النهار!";
+            } else if (role === 'Doctor') {
+                card.style.background = '#e0f2f1'; card.style.color = '#00695c';
+                icon.innerText = "➕"; icon.style.color = '#00695c';
+                title.innerText = "الطبيب"; title.style.color = '#00695c';
+                desc.innerText = "اختر لاعباً واحداً لحمايته من القتل.";
+            } else if (role === 'Sheikh') {
+                card.style.background = '#f3e5f5'; card.style.color = '#6a1b9a';
+                icon.innerText = "👁️"; icon.style.color = '#6a1b9a';
+                title.innerText = "الشيخ"; title.style.color = '#6a1b9a';
+                desc.innerText = "تحقق من هوية شخص واحد كل ليلة.";
+            } else {
+                card.style.background = '#e0e0e0'; card.style.color = '#424242';
+                icon.innerText = "👤"; icon.style.color = '#424242';
+                title.innerText = "المواطن"; title.style.color = '#424242';
+                desc.innerText = "ليس لديك قدرات ليلية. صوت في النهار.";
+            }
+
+            showScreen('role-reveal-screen');
+        }
+
+        function hideRoleAndNext() {
+            game.passIndex++;
+            if (game.passIndex >= game.alivePlayers.length) {
+                startNightPhase();
+            } else {
+                startPassSequence("كشف الأدوار", showRoleReveal);
+            }
+        }
+
+        // --- مرحلة الليل ---
+        function startNightPhase() {
+            game.phase = 'night';
+            game.passIndex = 0;
+            game.nightActions = { mafiaTarget: null, doctorTarget: null, sheikhTarget: null };
+            processNextNightPlayer();
+        }
+
+        function processNextNightPlayer() {
+            if (game.passIndex >= game.alivePlayers.length) {
+                resolveNight();
+                return;
+            }
+            startPassSequence(`الليلة ${game.round} - تحركات سرية`, handleNightTurn);
+        }
+
+        function handleNightTurn() {
+            const player = game.alivePlayers[game.passIndex];
+            const role = game.roles[player];
+            game.currentNightRole = role;
+
+            const screen = document.getElementById('night-action-screen');
+            const title = document.getElementById('night-header-title');
+            const desc = document.getElementById('night-header-desc');
+            const list = document.getElementById('night-player-list');
+            const confirmBtn = document.getElementById('night-confirm-btn');
+            const timerText = document.getElementById('night-timer-text');
+            const timerProgress = document.getElementById('timer-progress');
+            
+            list.innerHTML = '';
+            
+            // إعداد الثيم
+            screen.className = 'screen active'; // reset
+            if (role === 'Mafia') {
+                screen.classList.add('theme-mafia');
+                title.innerText = "اختر ضحية";
+                desc.innerText = "من بين اللاعبين الموجودين";
+                confirmBtn.style.background = '#ef4444';
+            } else if (role === 'Doctor') {
+                screen.classList.add('theme-doctor');
+                title.innerText = "اختر لاعباً للحماية";
+                desc.innerText = "اختر لاعباً واحداً لإنقاذه من القتل";
+                confirmBtn.style.background = '#10b981';
+            } else if (role === 'Sheikh') {
+                screen.classList.add('theme-sheikh');
+                title.innerText = "اختر لاعباً للتحقق";
+                desc.innerText = "اكتشف ما إذا كان مافيا أم لا";
+                confirmBtn.style.background = '#8b5cf6';
+            } else {
+                screen.classList.add('theme-mafia'); // neutral dark
+                title.innerText = "أنت نائم";
+                desc.innerText = "لا تقم بأي حركة حتى الصباح";
+                confirmBtn.style.display = 'none'; // hide confirm for citizen
+            }
+
+            // توليد القائمة
+            if (role !== 'Citizen') {
+                confirmBtn.style.display = 'flex';
+                game.alivePlayers.forEach(p => {
+                    if (role === 'Mafia' && game.roles[p] === 'Mafia') return; 
+                    if (role === 'Doctor' && !game.settings.doctorCanSelfSave && p === player) return;
+
+                    list.innerHTML += `
+                        <div class="player-list-item" onclick="selectTarget(this, '${p}')">
+                            <div class="player-info">
+                                <div class="avatar">👤</div>
+                                <span>اللاعب ${p}</span>
+                            </div>
+                            <div class="radio-circle"></div>
+                        </div>
+                    `;
+                });
+            } else {
+                confirmBtn.style.display = 'none';
+            }
+
+            showScreen('night-action-screen');
+
+            // المؤقت (8 ثواني افتراضي للتوضيح كما في الصورة)
+            let timeLimit = role === 'Citizen' ? 5 : 8;
+            startCircularTimer(timeLimit, timerText, timerProgress, () => {
+                if (role === 'Citizen') nextNightPlayer();
+                else if (!game.nightActions[role.toLowerCase() + 'Target']) nextNightPlayer(); // إذا لم يختر، يتخطى
+            });
+        }
+
+        function selectTarget(element, playerName) {
+            document.querySelectorAll('#night-player-list .player-list-item').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            
+            const role = game.currentNightRole;
+            if (role === 'Mafia') game.nightActions.mafiaTarget = playerName;
+            if (role === 'Doctor') game.nightActions.doctorTarget = playerName;
+            if (role === 'Sheikh') game.nightActions.sheikhTarget = playerName;
+        }
+
+        function confirmNightAction() {
+            clearInterval(game.activeTimer);
+            
+            if (game.currentNightRole === 'Sheikh') {
+                const target = game.nightActions.sheikhTarget;
+                if (!target) return nextNightPlayer();
+                
+                const isMafia = game.roles[target] === 'Mafia';
+                document.getElementById('night-result-icon').innerText = isMafia ? '🔪' : '✅';
+                document.getElementById('night-result-title').innerText = isMafia ? 'مافيا!' : 'مواطن صالح';
+                document.getElementById('night-result-title').style.color = isMafia ? '#ef4444' : '#10b981';
+                document.getElementById('night-result-text').innerText = `اللاعب ${target} هو: ${isMafia ? 'مافيا' : 'ليس مافيا'}`;
+                
+                // إظهار النتيجة للشيخ
+                showScreen('night-result-screen');
+                
+                // تعديل الزر للانتقال للتالي
+                const btn = document.querySelector('#night-result-screen .btn-primary');
+                btn.innerText = "فهمت، إخفاء وتمرير";
+                btn.onclick = () => { nextNightPlayer(); };
+                
+            } else {
+                nextNightPlayer();
+            }
+        }
+
+        function nextNightPlayer() {
+            clearInterval(game.activeTimer);
+            game.passIndex++;
+            processNextNightPlayer();
+        }
+
+        // --- حل الليل ---
+        function resolveNight() {
+            const mafiaTarget = game.nightActions.mafiaTarget;
+            const doctorTarget = game.nightActions.doctorTarget;
+            
+            let message = ""; let icon = ""; let title = "";
+
+            if (mafiaTarget) {
+                if (mafiaTarget === doctorTarget) {
+                    title = "تم إنقاذ الضحية!"; message = "الطبيب أنقذ الضحية الليلة، لم يمت أحد."; icon = "🛡️";
+                } else {
+                    game.alivePlayers = game.alivePlayers.filter(p => p !== mafiaTarget);
+                    title = "وقعت ضحية!"; message = `تم إقصاء اللاعب: ${mafiaTarget}`; icon = "💀";
+                    if (game.settings.revealOnDeath) {
+                        message += ` (دوره كان: ${getRoleNameArabic(game.roles[mafiaTarget])})`;
+                    }
+                }
+            } else {
+                title = "ليلة هادئة"; message = "لم يمت أحد الليلة."; icon = "🌙";
+            }
+
+            if (checkWinCondition()) return;
+
+            document.getElementById('night-result-icon').innerText = icon;
+            document.getElementById('night-result-title').innerText = title;
+            document.getElementById('night-result-text').innerText = message;
+            
+            // إعادة ضبط زر النتيجة للانتقال للنهار
+            const btn = document.querySelector('#night-result-screen .btn-primary');
+            btn.innerText = "متابعة إلى النهار";
+            btn.onclick = () => { startDayPhase(); };
+            
+            showScreen('night-result-screen');
+        }
+
+        // --- النهار والتصويت ---
+        function startDayPhase() {
+            showScreen('day-screen');
+            let time = game.settings.discussionTimer;
+            const timerText = document.getElementById('day-timer-text');
+            const timerProgress = document.getElementById('day-timer-progress');
+            
+            startCircularTimer(time, timerText, timerProgress, () => {
+                startVoting();
+            });
+        }
+
+        function startVoting() {
+            clearInterval(game.activeTimer);
+            game.passIndex = 0;
+            game.votes = {};
+            processNextVoter();
+        }
+
+        function processNextVoter() {
+            if (game.passIndex >= game.alivePlayers.length) {
+                resolveVotes(); return;
+            }
+            startPassSequence("التصويت السري", handleVoteTurn);
+        }
+
+        function handleVoteTurn() {
+            const currentPlayer = game.alivePlayers[game.passIndex];
+            const list = document.getElementById('vote-player-list');
+            list.innerHTML = '';
+            document.getElementById('voting-context').innerText = `يا ${currentPlayer}، اختر من تعتقد أنه المافيا:`;
+
+            game.alivePlayers.forEach(p => {
+                if (p === currentPlayer) return; 
+                list.innerHTML += `
+                    <div class="player-list-item" onclick="selectVoteTarget(this, '${p}')">
+                        <div class="player-info">
+                            <div class="avatar">👤</div>
+                            <span>اللاعب ${p}</span>
+                        </div>
+                        <div class="radio-circle"></div>
+                    </div>
+                `;
+            });
+            showScreen('voting-screen');
+        }
+
+        function selectVoteTarget(element, player) {
+            document.querySelectorAll('#vote-player-list .player-list-item').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            game.votes[game.alivePlayers[game.passIndex]] = player;
+        }
+
+        function confirmVote() {
+            if (!game.votes[game.alivePlayers[game.passIndex]]) return alert("اختر لاعباً!");
+            game.passIndex++;
+            processNextVoter();
+        }
+
+        function resolveVotes() {
+            let counts = {};
+            for (let voter in game.votes) {
+                let target = game.votes[voter];
+                counts[target] = (counts[target] || 0) + 1;
+            }
+
+            let maxVotes = 0; let eliminated = [];
+            for (let player in counts) {
+                if (counts[player] > maxVotes) { maxVotes = counts[player]; eliminated = [player]; }
+                else if (counts[player] === maxVotes) { eliminated.push(player); }
+            }
+
+            let title = ""; let message = ""; let icon = "🗳️";
+
+            if (eliminated.length === 0) {
+                title = "لا توجد أصوات"; message = "لم يصوت أحد.";
+            } else if (eliminated.length === 1) {
+                const victim = eliminated[0];
+                game.alivePlayers = game.alivePlayers.filter(p => p !== victim);
+                title = "تم الإقصاء"; message = `تم إقصاء اللاعب: ${victim}`;
+                if (game.settings.revealOnDeath) message += ` (دوره كان: ${getRoleNameArabic(game.roles[victim])})`;
+            } else {
+                if (game.settings.tieRule === 'none') {
+                    title = "تعادل!"; message = "تعادل في الأصوات، لم يتم إقصاء أحد.";
+                } else {
+                    const victim = eliminated[Math.floor(Math.random() * eliminated.length)];
+                    game.alivePlayers = game.alivePlayers.filter(p => p !== victim);
+                    title = "تعادل وحسم عشوائي"; message = `تم إقصاء: ${victim}`;
+                    if (game.settings.revealOnDeath) message += ` (دوره: ${getRoleNameArabic(game.roles[victim])})`;
+                }
+            }
+
+            if (checkWinCondition()) return;
+
+            document.getElementById('vote-result-icon').innerText = icon;
+            document.getElementById('vote-result-title').innerText = title;
+            document.getElementById('vote-result-text').innerText = message;
+            showScreen('vote-result-screen');
+        }
+
+        function nextRound() {
+            game.round++;
+            startNightPhase();
+        }
+
+        // --- شروط الفوز ---
+        function checkWinCondition() {
+            let aliveMafia = 0; let aliveOthers = 0;
+            game.alivePlayers.forEach(p => {
+                if (game.roles[p] === 'Mafia') aliveMafia++;
+                else aliveOthers++;
+            });
+
+            if (aliveMafia === 0) { showWinner("المواطنون", "تم القضاء على المافيا بالكامل! 🎉", "🏆"); return true; }
+            if (aliveMafia >= aliveOthers) { showWinner("المافيا", "سيطرت المافيا على المدينة! 🔪", "😈"); return true; }
+            return false;
+        }
+
+        function showWinner(team, desc, icon) {
+            clearInterval(game.activeTimer);
+            document.getElementById('winner-text').innerText = `فاز فريق: ${team}`;
+            document.getElementById('winner-desc').innerText = desc;
+            document.getElementById('winner-icon').innerText = icon;
+            showScreen('game-over-screen');
+        }
+
+        function replayGame() {
+            game.alivePlayers = [...game.players];
+            startGame();
+        }
+
+        function editPlayers() {
+            showScreen('names-screen');
+            renderNameInputs();
+        }
+
+        // --- أدوات مساعدة ---
+        function getRoleNameArabic(role) {
+            if (role === 'Mafia') return "مافيا";
+            if (role === 'Doctor') return "طبيب";
+            if (role === 'Sheikh') return "شيخ";
+            return "مواطن";
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function startCircularTimer(seconds, textEl, progressEl, onEnd) {
+            clearInterval(game.activeTimer);
+            let timeLeft = seconds;
+            textEl.innerText = timeLeft + 's';
+            
+            const maxOffset = 200; // 2 * PI * r (30) ≈ 188
+            progressEl.style.strokeDasharray = maxOffset;
+            progressEl.style.strokeDashoffset = 0;
+
+            game.activeTimer = setInterval(() => {
+                timeLeft--;
+                textEl.innerText = timeLeft + 's';
+                
+                // حساب التقدم
+                const offset = maxOffset - (timeLeft / seconds) * maxOffset;
+                progressEl.style.strokeDashoffset = offset;
+
+                if (timeLeft <= 0) {
+                    clearInterval(game.activeTimer);
+                    if (onEnd) onEnd();
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
